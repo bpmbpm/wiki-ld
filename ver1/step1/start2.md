@@ -1004,3 +1004,231 @@ Confluence
 - **Метки не исчезают полностью:** они остаются дешевым штатным индексом, но не должны дублировать все свойства. Оптимально оставить в метках только класс, статус и, при необходимости, домен.
 
 CQL-поле (Confluence Query Language field) — это элемент языка CQL, который обозначает индексируемое свойство контента в Confluence. Проще говоря, это «параметр», по которому вы фильтруете результаты поиска: например, ищете страницы с определённой меткой (label), созданные автором (creator) или обновлённые после конкретной даты. 
+
+## 4
+
+Какие сторонние плагины решают эту проблему
+
+Да, есть несколько категорий плагинов. Важно сразу разделить: одни позволяют **фильтровать уже собранную таблицу Page Properties**, другие — **индексируют свойства и делают их доступными для CQL-поиска**, третьи — создают **структурированные объекты и связи**, пригодные для графа знаний.
+
+## 1. StiltSoft: Table Filter, Charts & Spreadsheets
+
+**Что решает:** фильтрацию, сортировку, агрегацию и визуализацию данных из Page Properties Report.
+
+Приложение работает поверх штатного Page Properties Report: сначала штатный макрос собирает страницы по метке и выводит их свойства в таблицу, затем Table Filter добавляет интерактивные фильтры по колонкам, pivot-таблицы, диаграммы и SQL-подобные преобразования. [marketplace.atlassian](https://marketplace.atlassian.com/apps/27447/table-filter-charts-spreadsheets-for-confluence)
+
+**Как это работает:**
+
+```text
+Page Properties на страницах процессов
+        ↓
+Page Properties Report по метке ont-process
+        ↓
+Table Filter / Pivot Table / Chart from Table
+        ↓
+Интерактивный реестр: фильтр по системе, владельцу, статусу
+```
+
+**Можно получить:**
+
+- все процессы, где в колонке `Использует систему` указана АБС;
+- все системы с `Критичность = High`;
+- сводную таблицу «Процесс — Система — Продукт»;
+- pivot по доменам и статусам;
+- диаграммы распределения объектов.
+
+**Ограничение:** фильтры применяются к строкам, уже отображенным Page Properties Report; приложение не превращает само по себе Page Properties в индексируемые CQL-поля и не заменяет полноценный графовый запрос. [stiltsoft](https://stiltsoft.com/blog/table-filter-and-charts-with-page-properties-report/)
+
+**Когда выбирать:** если нужен удобный корпоративный каталог и интерактивные реестры внутри Confluence, без внешнего графа.
+
+Ссылка: [Table Filter, Charts & Spreadsheets for Confluence](https://marketplace.atlassian.com/apps/27447/table-filter-charts-spreadsheets-for-confluence). [marketplace.atlassian](https://marketplace.atlassian.com/apps/27447/table-filter-charts-spreadsheets-for-confluence)
+
+## 2. Junovi: Properties
+
+**Что решает:** наиболее близко к вашей задаче — поиск и фильтрацию по **значениям свойств**, а не только по меткам.
+
+Приложение использует пару макросов:
+
+- `Property Group` — задает структурированные свойства на странице;
+- `Property Group Report` — собирает страницы и позволяет фильтровать по значениям свойств, меткам, пространствам и ветке дерева. [seibert](https://seibert.group/blog/en/keep-track-goals-objectives-confluence/)
+
+**Ключевая возможность:** в отчете есть фильтр **Property Value(s)**, который возвращает страницы с заданными значениями свойств; несколько фильтров объединяются через `AND`, а несколько значений внутри одного фильтра — через `OR`. [junovi.atlassian](https://junovi.atlassian.net/wiki/spaces/PROP/pages/2145255476)
+
+Пример:
+
+```text
+Property Group: Бизнес-процесс
+
+Свойства:
+  Владелец
+  Использует систему
+  Поддерживает продукт
+  Статус
+  Критичность
+```
+
+Запрос в Property Group Report:
+
+```text
+Свойство: Использует систему = АБС
+AND
+Свойство: Статус = Действует
+AND
+Метка: domain-lending
+```
+
+Результат — все процессы кредитования, использующие АБС и находящиеся в статусе «Действует».
+
+**Плюсы:**
+
+- именно поиск по `Свойство = Значение`;
+- отчеты в виде таблицы или карточек;
+- комбинация свойств, меток, пространств и предков;
+- меньше необходимости дублировать семантику метками.
+
+**Ограничение:** это собственная модель свойств приложения, а не штатный Page Properties. Если у вас уже много данных в Page Properties, потребуется миграция или параллельное ведение.
+
+Ссылка: [Properties — Confluence](https://junovi.atlassian.net/wiki/spaces/PROP/pages/2145255476). [junovi.atlassian](https://junovi.atlassian.net/wiki/spaces/PROP/pages/2145255476)
+
+## 3. EPS: Page Properties Report / EDM Macros
+
+**Что решает:** индексацию значений Page Properties и фильтрацию через CQL.
+
+У EPS есть механизм, при котором специальные макросы размещаются внутри Page Properties; значения автоматически индексируются и становятся доступны для CQL-фильтрации и Page Properties Report. 
+
+**Как это работает:**
+
+```text
+Page Properties
+└── EDM macro / индексируемое поле
+        ↓
+Индекс Confluence
+        ↓
+CQL-фильтр / Page Properties Report
+```
+
+**Пример запроса:**
+
+```text
+Найти страницы, где:
+  status = Approved
+  AND system = ABS
+```
+
+**Плюсы:**
+
+- сохраняется работа со штатным Page Properties;
+- значения становятся доступными для поиска;
+- можно строить CQL-запросы без выгрузки во внешний граф.
+
+**Ограничение:**
+
+- требуется конкретное приложение EPS;
+- нужно проверить совместимость с вашей версией Confluence — Cloud или Data Center;
+- модель индексируемых полей нужно проектировать заранее.
+
+Ссылка: [Filtering with the Page Property Report Macro — EPS](https://doc.eps.ch/pedms/latest/filtering-with-the-page-property-report-macro). 
+
+## 4. Atlassian: Content Properties + Search Extensions
+
+Это не сторонний плагин, а **нативный механизм Confluence Cloud**, но его стоит рассматривать как альтернативу плагинам.
+
+Content Properties — это key-value данные, привязанные к странице. Search Extensions позволяют объявить такие свойства индексируемыми и использовать их в CQL-поиске и фильтрах. 
+
+**Как это работает:**
+
+```text
+Страница Confluence
+├── Page Properties — видимое представление для пользователя
+└── Content Properties — машиночитаемое key-value хранилище
+        ↓
+Индекс Confluence
+        ↓
+CQL: найти по свойству и значению
+```
+
+**Пример:**
+
+```json
+{
+  "key": "ontology",
+  "value": {
+    "class": "BusinessProcess",
+    "status": "Approved",
+    "usesSystem": "ABS"
+  }
+}
+```
+
+**Плюсы:**
+
+- нет сторонней зависимости;
+- свойства доступны для CQL;
+- можно синхронизировать с Page Properties через REST API;
+- лучше подходит для последующего экспорта в граф знаний.
+
+**Минусы:**
+
+- требуется разработка/интеграция;
+- пользовательский интерфейс менее удобен, чем у специализированных приложений;
+- в Data Center реализация и возможности могут отличаться.
+
+Ссылка: [Confluence Search Extensions](https://developer.atlassian.com/cloud/confluence/search-extensions/). 
+
+## 5. Собственный плагин: CQL field + extractor
+
+Для Data Center/Server можно разработать собственное приложение, которое добавляет произвольное свойство страницы в CQL-индекс.
+
+Atlassian описывает схему: listener создает/обновляет свойство, extractor помещает значение в поисковый индекс, CQL field handler обрабатывает выражение вида `status = "Approved"`, а REST-ресурс обеспечивает автодополнение в расширенном поиске. [developer.atlassian](https://developer.atlassian.com/server/confluence/adding-a-field-to-cql/)
+
+**Когда оправдано:**
+
+- есть команда разработки Atlassian-приложений;
+- нужен строгий контроль индексации;
+- требуется интеграция с корпоративным поиском;
+- нельзя использовать внешнюю графовую БД или marketplace-приложения.
+
+**Когда не оправдано:** если задача решается стандартным Content Properties, Properties от Junovi или StiltSoft.
+
+## Сравнение
+
+| Решение | Поиск `Свойство = Значение` | Работа с Page Properties | Граф знаний | Сложность |
+|---|---|---|---|---|
+| Штатный Page Properties Report | Нет / очень ограниченно | Да | Нет | Низкая |
+| **StiltSoft Table Filter** | Фильтрация собранной таблицы | Да, через Report | Нет | Низкая |
+| **Junovi Properties** | **Да, по значениям свойств** | Нет, своя модель Property Group | Частично | Средняя |
+| **EPS EDM Macros** | **Да, через CQL** | Да | Частично | Средняя |
+| **Content Properties + Search Extensions** | **Да, через CQL** | Требует синхронизации | Хорошая основа | Средняя/высокая |
+| Собственный CQL-плагин | Да | Да | Хорошая основа | Высокая |
+| Внешний RDF/Neo4j граф | Да, включая транзитивные запросы | Через экспорт | **Да** | Высокая |
+
+## Что выбрать
+
+| Сценарий | Рекомендация |
+|---|---|
+| Нужны удобные реестры и фильтры в Confluence | **StiltSoft Table Filter, Charts & Spreadsheets**  [marketplace.atlassian](https://marketplace.atlassian.com/apps/27447/table-filter-charts-spreadsheets-for-confluence) |
+| Нужен поиск именно по `Свойство = Значение` без внешней системы | **Junovi Properties**  [seibert](https://seibert.group/blog/en/keep-track-goals-objectives-confluence/) |
+| Нужен CQL-поиск при сохранении Page Properties | **EPS EDM Macros** или Content Properties + Search Extensions  |
+| Нужны транзитивные запросы, reasoning, RDF/OWL | **Confluence + REST API + внешний RDF Store или Neo4j** |
+| Нужен корпоративный семантический каталог с минимальными изменениями UX | **Junovi Properties + StiltSoft** |
+| Нужна долгосрочная онтологическая платформа | **Confluence как редактор + внешний граф знаний** |
+
+## Практическая рекомендация
+
+Для корпоративной wiki банка я бы выбрал двухуровневую архитектуру:
+
+```text
+Уровень 1. Confluence
+├── Page Properties — семантика для пользователей
+├── Метки — класс, статус, домен
+└── Junovi Properties или EPS
+    └── поиск по значениям свойств
+
+Уровень 2. Граф знаний
+└── Экспорт Page Properties / Content Properties через REST API
+    └── RDF Store или Neo4j
+        └── SPARQL / Cypher, транситивные запросы, валидация онтологии
+```
+
+Если можно установить только одно приложение, начните с **Junovi Properties**: оно наиболее прямо решает проблему «найти все страницы, где свойство A равно значению B». Если же критичны интерактивные реестры, pivot-анализ и визуализация, добавьте **StiltSoft Table Filter, Charts & Spreadsheets**. [marketplace.atlassian](https://marketplace.atlassian.com/apps/27447/table-filter-charts-spreadsheets-for-confluence)
+
