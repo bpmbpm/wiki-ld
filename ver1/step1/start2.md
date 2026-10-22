@@ -674,3 +674,331 @@ Page Properties Report:
 ```
 
 Таким образом, метки не заменяют Page Properties: **Page Properties хранят семантику, метки обеспечивают индексацию и выборки**. Системные свойства Confluence не дублируются, а отображаются или экспортируются как уже существующие факты о странице. [developer.atlassian](https://developer.atlassian.com/cloud/confluence/rest/v2/api-group-page/)
+
+
+### 3
+
+Вы правы: в **штатном Confluence нельзя полноценно искать по произвольной паре «ключ Page Properties = значение»**. Штатный Page Properties Report выбирает страницы прежде всего по метке и CQL-фильтрам, а значения из Page Properties в основном отображает колонками; полноценный поиск по произвольным key-value свойствам требует content properties/search extensions или стороннего приложения. [confluence.atlassian](https://confluence.atlassian.com/conf719/page-properties-report-macro-1157466853.html)
+
+Поэтому уточню прежнюю формулу: **Page Properties хранят семантику, но не обязательно обеспечивают ее поиск**. Если поиск по семантике нужен, свойства надо либо индексировать через Content Properties/Search Extensions, либо использовать приложение, либо выгружать их во внешний граф знаний.
+
+## Что умеет штатный Confluence
+
+| Возможность | Штатный Confluence | Комментарий |
+|---|---|---|
+| Хранить key-value на странице | Да | Page Properties |
+| Показать значения в таблице | Да | Page Properties Report |
+| Выбрать страницы по метке | Да | `Label = ont-process` |
+| Выбрать страницы по CQL-полям | Да | пространство, предок, заголовок, тип контента и др. |
+| Найти все страницы, где `usesSystem = АБС` | **Нет, нативно** | Значение Page Properties не является индексируемым CQL-полем |
+| Найти все страницы, где `hasStatus = Approved` | **Нет, нативно** | Нужны content properties, приложение или экспорт |
+| Построить произвольный графовый запрос | Нет | Нужен внешний граф или специализированное приложение |
+
+Штатный макрос Page Properties Report поддерживает CQL-фильтры и операторы `AND`, `OR`, `NOT`, но фильтр `Label` является основным способом отбора страниц; произвольные пары «свойство Page Properties — значение» в этот механизм напрямую не попадают. [confluence.atlassian](https://confluence.atlassian.com/conf719/page-properties-report-macro-1157466853.html)
+
+## Как сделать поиск по «ключ — значение»
+
+Есть три рабочих варианта.
+
+### Вариант 1: Content Properties + Search Extensions
+
+Это наиболее «нативный» путь для Confluence Cloud.
+
+Идея: помимо видимого макроса Page Properties, сохранять те же семантические факты как **content properties** — JSON key-value пары, привязанные к странице. Если свойство объявлено индексируемым, по нему можно строить CQL-запросы и фильтры в макросах. [developer.atlassian](https://developer.atlassian.com/cloud/confluence/search-extensions/)
+
+Пример content property для страницы процесса:
+
+```json
+{
+  "key": "ontology",
+  "value": {
+    "class": "BusinessProcess",
+    "entityId": "BP-CR-003",
+    "status": "Approved",
+    "usesSystem": ["ABS", "LoanWorkflow"],
+    "domain": ["lending", "risk"]
+  }
+}
+```
+
+Тогда возможен запрос вида:
+
+```text
+Найти страницы, где:
+  ontology.class = BusinessProcess
+  AND ontology.status = Approved
+  AND ontology.usesSystem = ABS
+```
+
+Confluence официально описывает Search Extensions именно так: content properties — key-value пары на странице или записи блога; после объявления свойства индексируемым можно использовать его в CQL и фильтрах макросов. [developer.atlassian](https://developer.atlassian.com/cloud/confluence/search-extensions/)
+
+**Плюсы:**
+
+- поиск по семантическим свойствам;
+- нет дублирования в метках;
+- свойства остаются машиночитаемыми;
+- можно строить отчеты и фильтры.
+
+**Минусы:**
+
+- требуется интеграция через REST API;
+- Page Properties и content properties нужно синхронизировать;
+- настройка нетривиальна для обычных пользователей.
+
+### Вариант 2: сторонние приложения
+
+Если Confluence Data Center/Server и доступна установка приложений, можно использовать расширения отчетности.
+
+Примеры:
+
+- **Table Filter, Charts & Spreadsheets / Page Properties Report от StiltSoft** — позволяет строить отчеты по Page Properties и использовать SQL-подобные запросы к собранным данным. [docs.stiltsoft](https://docs.stiltsoft.com/spaces/TFACDRAFTS/pages/162269579/Page+Properties+Report)
+- **EPS Page Properties Report / EDM macros** — индексирует значения внутри Page Properties и позволяет фильтровать их через CQL и Page Properties Report. [doc.eps](https://doc.eps.ch/pedms/latest/filtering-with-the-page-property-report-macro)
+
+С такими инструментами запрос «найди все процессы, где `Использует систему = АБС` и `Статус = Действует`» становится возможным непосредственно в Confluence.
+
+**Плюсы:**
+
+- привычный интерфейс Confluence;
+- Page Properties остаются источником семантики;
+- можно строить интерактивные реестры.
+
+**Минусы:**
+
+- зависимость от приложения;
+- различия между Cloud и Data Center;
+- требуется лицензирование и администрирование.
+
+### Вариант 3: экспорт Page Properties во внешний граф
+
+Это правильный вариант, если нужна настоящая семантическая модель, транситивные запросы, reasoning, версии онтологии и интеграция с другими системами.
+
+Схема:
+
+```text
+Confluence
+├── Page Properties
+├── Метки
+├── Дерево страниц
+└── REST API
+        ↓ ETL / синхронизация
+Промежуточная модель JSON / CSV
+        ↓ преобразование
+Граф знаний
+├── Neo4j / RDF Store / Oxigraph / GraphDB
+        ↓
+SPARQL / Cypher / API
+        ↓
+Confluence-страницы, отчеты, дашборды
+```
+
+Confluence Cloud REST API возвращает `id`, `title`, `spaceId`, `parentId`, статус и другие атрибуты страницы; это позволяет построить стабильный экспорт структуры и свойств. 
+
+## Зачем тогда метки
+
+Метки остаются полезными, но их роль сужается.
+
+| Роль | Метки | Page Properties | Content Properties |
+|---|---|---|---|
+| Быстрая ручная классификация | Да | Нет | Нет |
+| Поиск в штатном интерфейсе | Да | Ограниченно | Да, если индексированы |
+| Вход в Page Properties Report | Да | Нет | Зависит от реализации |
+| Типизированная связь объект-объект | Нет | Да | Да |
+| Значение с типом и контролируемым словарем | Ограниченно | Да | Да |
+| Машинная интеграция | Ограниченно | Через API | Да |
+| Граф знаний | Как вспомогательный фасет | Да | Да |
+
+Метки нужны, если:
+
+- вы не можете использовать content properties или приложения;
+- нужен простой поиск и навигация без интеграций;
+- метка служит «точкой входа» для Page Properties Report;
+- нужны фасеты, понятные пользователю: `domain-lending`, `status-approved`, `crit-high`.
+
+Метки можно исключить или свести к минимуму, если:
+
+- все семантические свойства хранятся в content properties;
+- эти свойства индексируются;
+- отчеты и поиск строятся по CQL;
+- Page Properties Report настраивается через content properties, а не через label.
+
+Практически разумный компромисс: **метки — только для класса объекта и жизненного цикла**, а все предметные связи — в Page Properties/content properties.
+
+```text
+Метки:
+  ont-process
+  status-approved
+
+Page Properties:
+  entityId = BP-CR-003
+  hasOwner = Департамент кредитования
+  usesSystem = АБС
+  supportsProduct = Корпоративный кредит
+
+Content Properties:
+  class = BusinessProcess
+  status = Approved
+  usesSystem = [ABS]
+  domain = [lending]
+```
+
+## Как построить граф знаний в Confluence
+
+### Шаг 1. Определить графовую модель
+
+Зафиксируйте три типа узлов и два типа ребер.
+
+```text
+Узлы:
+  wiki:Page
+  wiki:Entity
+  wiki:Label
+
+Ребра:
+  wiki:Page      --represents-->  wiki:Entity
+  wiki:Page      --hasLabel-->    wiki:Label
+  wiki:Page      --hasParent-->   wiki:Page
+  wiki:Entity    --usesSystem-->  wiki:Entity
+  wiki:Entity    --hasOwner-->    wiki:Entity
+```
+
+Более строгая модель:
+
+```text
+wiki:Page_12345
+    wiki:representsEntity wiki:Entity_BP-CR-003 .
+
+wiki:Entity_BP-CR-003
+    rdf:type ont:BusinessProcess ;
+    ont:usesSystem ont:Entity_ABS ;
+    ont:hasOwner ont:Entity_DepLending .
+```
+
+### Шаг 2. Извлечь данные из Confluence
+
+Соберите по каждой странице:
+
+- `pageId`;
+- `title`;
+- `spaceId`;
+- `parentId`;
+- labels;
+- Page Properties;
+- content properties, если используются.
+
+Источник — REST API Confluence. 
+
+### Шаг 3. Преобразовать в триплеты
+
+Правила преобразования:
+
+| Источник в Confluence | Триплет |
+|---|---|
+| `pageId` | `wiki:Page_12345 wiki:hasConfluenceId "12345"` |
+| Заголовок | `wiki:Page_12345 rdfs:label "Бизнес-процесс — Выдача кредита"` |
+| Родитель | `wiki:Page_12345 wiki:hasParentPage wiki:Page_11111` |
+| Метка | `wiki:Page_12345 wiki:hasLabel wiki:Label_ont-process` |
+| Page Properties `Тип` | `wiki:Page_12345 wiki:hasClass wiki:Class_Process` |
+| Page Properties `Использует систему` | `wiki:Page_12345 wiki:usesSystem wiki:Page_ABS` |
+| Content Properties `status` | `wiki:Page_12345 wiki:hasStatus "Approved"` |
+
+### Шаг 4. Загрузить в граф
+
+Для RDF:
+
+```turtle
+@prefix wiki: <https://example.org/wiki/> .
+@prefix ont:  <https://example.org/ontology/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+wiki:Page_12345
+    a ont:BusinessProcessPage ;
+    rdfs:label "Бизнес-процесс — Выдача кредита" ;
+    wiki:hasParentPage wiki:Page_11111 ;
+    wiki:hasLabel wiki:Label_ont-process ;
+    wiki:usesSystem wiki:Page_ABS ;
+    wiki:supportsProduct wiki:Page_Product_CorporateLoan .
+```
+
+Для Neo4j:
+
+```cypher
+MERGE (p:Page {id: "12345"})
+SET p.title = "Бизнес-процесс — Выдача кредита"
+
+MERGE (s:System {id: "ABS"})
+SET s.title = "АБС"
+
+MERGE (p)-[:USES_SYSTEM]->(s)
+```
+
+### Шаг 5. Выполнять графовые запросы
+
+Примеры вопросов, которые нельзя удобно решить штатным поиском Confluence:
+
+```text
+Найти все процессы, использующие АБС.
+```
+
+SPARQL:
+
+```sparql
+SELECT ?process ?title
+WHERE {
+  ?process a ont:BusinessProcess ;
+           ont:usesSystem ont:Entity_ABS ;
+           rdfs:label ?title .
+}
+```
+
+Cypher:
+
+```cypher
+MATCH (p:Page)-[:USES_SYSTEM]->(s:System {id: "ABS"})
+RETURN p.title
+```
+
+Более сложный запрос:
+
+```text
+Найти все ИТ-системы, которые затрагиваются процессами,
+подчиненными требованию 115-ФЗ.
+```
+
+Это уже цепочка:
+
+```text
+Требование ← подчиняется ← Процесс → использует → Система
+```
+
+В Confluence такой обход связей штатными средствами практически недоступен; во внешнем графе это обычный path query.
+
+## Рекомендуемая архитектура
+
+Для вашего случая предлагаю такую схему:
+
+```text
+Confluence
+│
+├── Шаблоны и Page Properties
+│   └── источник семантики для человека
+│
+├── Метки
+│   └── фасеты для штатного поиска и Page Properties Report
+│
+├── Content Properties / Search Extensions
+│   └── индексируемые key-value для CQL-поиска
+│
+└── REST API
+    └── экспорт в граф знаний
+        ├── RDF Store + SPARQL
+        └── Neo4j + Cypher
+```
+
+## Практический вывод
+
+- **Если нужен только Confluence без плагинов:** Page Properties полезны для структурирования и отчетов в пределах страницы/ветки, а метки — для поиска и Page Properties Report. Поиск по произвольному `ключ = значение` будет ограниченным.
+- **Если нужен поиск по свойствам:** используйте Content Properties + Search Extensions или сторонний reporting-плагин. [developer.atlassian](https://developer.atlassian.com/cloud/confluence/search-extensions/)
+- **Если нужен настоящий граф знаний:** Confluence — редактор и источник фактов, а граф хранится во внешней системе; Page Properties экспортируются в RDF или property graph.
+- **Метки не исчезают полностью:** они остаются дешевым штатным индексом, но не должны дублировать все свойства. Оптимально оставить в метках только класс, статус и, при необходимости, домен.
+
+CQL-поле (Confluence Query Language field) — это элемент языка CQL, который обозначает индексируемое свойство контента в Confluence. Проще говоря, это «параметр», по которому вы фильтруете результаты поиска: например, ищете страницы с определённой меткой (label), созданные автором (creator) или обновлённые после конкретной даты. 
