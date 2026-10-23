@@ -1,3 +1,4 @@
+# bank ontology 
 ## 1 
 Онтология типового банка + ее "впихивание" в несемантическую wiki (semantic Wiki - это например, semantic MediaWiki) 
 
