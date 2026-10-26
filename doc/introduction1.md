@@ -29,3 +29,4 @@ https://www.iemag.ru/analitics/detail.php?ID=18024 ; https://eam-news.blogspot.c
 ## link
 ### EA
 - [Упорядочиваем архитектуру Банка](https://habr.com/ru/companies/alfa/articles/768160/)
+- https://github.com/bpmbpm/doc/tree/main/EA/GOST/version2 ; https://github.com/bpmbpm/doc/blob/main/LD/ontology/README.md#ea-ontologies
