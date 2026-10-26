@@ -1,6 +1,7 @@
 ## introduction
 ### enterprise ontology
-1 Есть понятие Архитектура предприятия, Enterprise Architecture. Точнее их два: Большая Архитектура предприятия и ИТ-архитектура предприятия.
+#### 1 Enterprise Architecture
+Есть понятие Архитектура предприятия, Enterprise Architecture. Точнее их два: Большая Архитектура предприятия и ИТ-архитектура предприятия.
 Большая Архитектура предприятия (АП):  
 
 **Универсальная дисциплина**  
@@ -11,10 +12,13 @@ https://www.iemag.ru/analitics/detail.php?ID=18024 ; https://eam-news.blogspot.c
 - это в сторону ["Инжиниринг предприятий и управление знаниями"](https://conf-eekm.ru/wp-content/uploads/2018/06/%D0%A1%D0%B1%D0%BE%D1%80%D0%BD%D0%B8%D0%BA_%D0%A2%D0%BE%D0%BC-2_%D0%98%D0%9F%D0%A3%D0%972018-1.pdf), см. [Зиндер Е.З.](https://vk.ru/e_zinder?ysclid=mvp59vsda343219246), сайт enterprisearchitect.ru (уже не работает,)
 - Основания для создания MARFA (Marcus Aurelius Framework for Architect) [symma](https://bm-symma.ru/Docs/%D0%A6%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D0%B0%D1%8F%20%D0%B0%D1%80%D1%85%D0%B8%D1%82%D0%B5%D0%BA%D1%82%D1%83%D1%80%D0%B0%20%D0%BF%D1%80%D0%B5%D0%B4%D0%BF%D1%80%D0%B8%D1%8F%D1%82%D0%B8%D1%8F.pdf)  
 
-1.1 simply
+#### 1.1 simply EA
 [Простая Enterprise Architecture. Архитектура компании садоводов](https://habr.com/ru/articles/726428/) - просто показано что такое EA.
 - github https://github.com/bpmbpm/EA-example
 - github Pages https://bpmbpm.github.io/EA-example/ea1_CHT.html
 
-2 enterprise ontology
+#### 2 enterprise ontology
 Чтобы не переиначивать термин EA (точнее два термина, т.е. эти две разные группы корпоративных архитектур) вводим Корпоративная онтология (enterprise ontology) - как семантизация предприятия. 
+
+Нужно составить онтологию предприятия, для начала СНТ (садовое товарищество) и язык описания предприятия. Как вариант вместо русского используем RDF\OWL.  
+Т.е. вместо архитектурных схем (Archimate etc) или "много букв" (рассказ как работает предприятие) мы используем онтологии (желательно в основном уже существующие) и "текст со знаниями", не текст со словами.  
