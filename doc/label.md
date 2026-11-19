@@ -11,3 +11,7 @@
 
 ## also
 - https://github.com/bpmbpm/doc/blob/main/LD2/nci/nci1.md
+
+## 2
+- Open Knowledge Format (OKF)
+- [Карта сайта для ИИ-агента: Markdown, граф ссылок и первые замеры](https://habr.com/ru/articles/1109612/)
